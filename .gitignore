@@ -1,7 +1,6 @@
 # Real controller/site definitions and secrets - keep only the .sample templates in git
 *.conf
 !*.conf.sample
-subspace.conf
 config
 
 # Logs

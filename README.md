@@ -1,75 +1,83 @@
 # Unifi Controller Backup
 
-## Description
+Backs up one or more UniFi Network controllers via the API — including UniFi
+OS controllers (UDM/UDM-Pro, UniFi OS Server, etc.) on port `11443`/`443`.
+Each controller can have multiple sites; each gets its own dated `.unf` file
+with automatic retention/cleanup.
 
-This is a small tool for backup the Unifi Controller. This tool use the *unifi_sh_api* provided by Ubiquiti. You can backup various Unifi Controller with different software version and multiples sites.
+## Requirements
 
-You must define a folder in which you must write your Unifi Controller definitions, one for each Unifi Controller.
+* `bash`, `curl`.
+* A **local** admin account on each controller with:
+  * Network: **Full Management** (required — triggering a backup is a
+    write operation; UniFi OS has no finer-grained "backup only" permission)
+  * System/User management can stay **View Only**.
+* Cloud accounts / MFA-enabled accounts are not supported by this API flow.
 
-This tool have been tested with some Unifi Controller versions:
+## Setup
 
-* 3.2.1
-* 3.2.7
-* 3.2.10
+1. Copy `config.sample` → `config` and set:
+   * `UCB_LOG_FILE` — log file path
+   * `BACKUP_DIR` — where `.unf` files are stored
+2. Create a `controllers/` directory, and for each controller, copy
+   `example.conf.sample` → `controllers/<name>.conf` and set:
+   * `username` / `password` — the local admin account above
+   * `baseurl` — e.g. `https://10.0.0.4:11443` (UniFi OS Server /
+     self-hosted) or `https://10.0.0.4` (UniFi OS console, port 443)
+   * `SITES` — space-separated site **IDs** from the URL, not display names
+   * `UNIFI_HOSTNAME` — used in backup filenames/logs
+   * `KEEP_BACKUP` — number of `.unf` files to retain per site
 
+`config` and `*.conf` are gitignored since they hold real paths/credentials —
+never commit them.
 
-## Install
-
-Just use install.sh :-)
+If any of these files were edited on Windows, strip CRLF line endings before
+running on Linux/Synology (`sed -i 's/\r$//' <file>`), otherwise bash fails
+with `$'\r': command not found`.
 
 ## Use
 
-* Normal use
 ```
-$ ucb # This is equal to "ucb -c /etc/ucb/config -d /etc/ucb/controllers"
-```
-
-* Getting help
-```
-$ ucb -h
-Help documentation for Unifi Controller Backup, version 0.1
-
-Basic usage: ucb
-
-Command line switches are optional. The following switches are recognized.
-  -c  --Sets the config file path. Default file is /etc/ucb/config
-  -d  --Sets the directory path whith all the controllers config. Default directory is /etc/ucb/controllers
-  -v  --Sets verboe mode, is not set by default
-  -h  --Displays this help message. No further functions are performed.
-
-Example: ucb -c /etc/ucb/config -d /etc/ucb/controllers
+$ ./unifi_controller_backup.sh              # uses ./config and ./controllers
+$ ./unifi_controller_backup.sh -c /path/to/config -d /path/to/controllers
+$ ./unifi_controller_backup.sh -v           # verbose (bash -x, echoes log to stderr too)
+$ ./unifi_controller_backup.sh -h           # help
 ```
 
-* You can use a crontab for regular backup
-```
-$ cat /etc/cron.d/ucb
-# Backup all by Unifi Controller every day at 01:00 a.m.
-00 01 * * * root /bin/ucb 
+Schedule it with cron or, on Synology, Task Scheduler. Note: when run from
+Task Scheduler it executes as that task's configured user — that's what
+grants access to a share like `BACKUP_DIR`. Running it manually as a
+different user will reach the controller fine but can fail on that path.
+
+Exit code is non-zero if any controller/site failed, so the scheduler can
+alert on it.
+
+### Sample log
 
 ```
-
-* Logs gives info about backup
+2026-09-27 10:07:48: [INFO] Starting backup from the file controllers/example.conf
+2026-09-27 10:07:48: [INFO] Finding sites for example-controller
+2026-09-27 10:07:48: [INFO] Hostname: example-controller, Site: default -> Login
+2026-09-27 10:07:48: [INFO] Hostname: example-controller, Site: default -> Requesting backup -> /backups/20260927-example-controller-default.unf
+2026-09-27 10:07:59: [INFO] Hostname: example-controller, Site: default -> Size of ...default.unf is 24M
+2026-09-27 10:07:59: [INFO] Hostname: example-controller, Site: default -> We must keep 10 backups and we have 1
+2026-09-27 10:07:59: [INFO] Hostname: example-controller, Site: default -> No old copies to delete
+2026-09-27 10:07:59: [INFO] Hostname: example-controller, Site: default -> Logout
+2026-09-27 10:07:59: [INFO] Finished backup from the file controllers/example.conf
 ```
-2015-03-26 16:23:01: Starting backup from the file /etc/ucb/controllers/example.conf
-2015-03-26 16:23:01: Finding it sites for example
-2015-03-26 16:23:01: Hostname: example, Site: default -> Starting
-2015-03-26 16:23:01: Hostname: example, Site: default -> Login
-2015-03-26 16:23:01: Hostname: example, Site: default -> Doing the backup to /var/backups/unifi_controller/20150326-example-default.unf
-2015-03-26 16:23:05: Hostname: example, Site: default -> Size of /var/backups/unifi_controller/20150326-example-default.unf is 2,6M
-2015-03-26 16:23:05: Hostname: example, Site: default -> Cleaning old backups
-2015-03-26 16:23:05: Hostname: example, Site: default -> We must keep 10 backups and we have 1
-2015-03-26 16:23:05: Hostname: example, Site: default -> No old copies to delete
-2015-03-26 16:23:05: Hostname: example, Site: default -> Logout
-2015-03-26 16:23:05: Hostname: example, Site: default -> Finished
-2015-03-26 16:23:05: Finished backup from the file /etc/ucb/controllers/example.conf
 
-```
+A failed step logs `[ERROR]` with the reason (login failure, permission
+error, missing/unwritable backup dir, etc.) and processing continues with the
+next site/controller rather than aborting the whole run.
 
 ## Limitations
-* username defined in a Unifi Controller must have access to all sites defined on it.
-* Sites Name can't contains spaces :-|
 
-## TODO
-* ~~Logs~~
-* Test
+* The account must have access to every site listed for its controller.
+* Site names/IDs can't contain spaces.
 
+## History
+
+Originally based on [kamaxeon/ucb](https://github.com/kamaxeon/ucb) (2015,
+classic controller API, unmaintained). Rewritten for UniFi OS: login moved to
+`/api/auth/login` with CSRF tokens, and site endpoints moved under
+`/proxy/network/api/s/<site>/...`.
