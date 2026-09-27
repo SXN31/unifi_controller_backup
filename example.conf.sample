@@ -1,0 +1,18 @@
+# This is an example of a unifi controller
+# The file name must be end with .conf
+
+username=admin
+password=password
+# UniFi OS Server / self-hosted Network app: port 11443
+# UniFi OS console (UDM/UDM-Pro etc.): port 443
+baseurl=https://example:11443
+
+# If you have multiple sites you can use SITES="default siteA siteB" ...
+# Sitenames can't contain spaces - use the site's short name/ID from the URL,
+# not the display name you set in the UI.
+SITES="default"
+
+UNIFI_HOSTNAME=example
+
+
+KEEP_BACKUP=10 # Number of stored copies

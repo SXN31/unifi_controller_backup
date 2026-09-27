@@ -1,0 +1,12 @@
+# Config file of Unifi Controller Backup
+# Copy this to "config" (kept out of git) and adjust the paths below.
+
+# UCB log file
+UCB_LOG_FILE=/volume1/InfraBackup/Utilities/unifi_controller_backup/logs/ucb.log
+
+# Backup directory where Unifi Controller Backup will be stored
+BACKUP_DIR="/volume1/InfraBackup/Configs/SubspaceNetwork/unifi"
+
+# Optional: override the path to unifi_sh_api.sh.
+# Defaults to the copy shipped next to this script.
+#UNIFI_SH_API_PATH=/volume1/InfraBackup/Utilities/unifi_controller_backup/unifi_sh_api.sh
